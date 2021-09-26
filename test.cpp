@@ -1,8 +1,11 @@
 #include "BigInt.hpp"
+
+#include <iostream>
+
 using namespace std;
 
 int main() {
-
+    // test the BigInt class
     cout << "Starting some asserts...\n";
     BigInt A("1234567890123456789012345678901234567890");
     assert(A.length() == 40);
