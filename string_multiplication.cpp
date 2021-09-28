@@ -1,9 +1,9 @@
 #include <bits/stdc++.h>
 using namespace std;
 
-// Karatsuba's multiplication algorithm for strings
+// Multiplication algorithm for strings
 
-string string_karatsuba_multiply(string a, string b) {
+string string_multiplication(string a, string b) {
     int a_length = a.length();
     int b_length = b.length();
     if (a_length == 0 || b_length == 0) {
@@ -52,6 +52,6 @@ int main() {
 
     string a, b;
     cin >> a >> b;
-    cout << string_karatsuba_multiply(a, b);
+    cout << string_multiplication(a, b);
     return 0;
 }
