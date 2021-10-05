@@ -1,11 +1,13 @@
 #include "BigInt.hpp"
 
 #include <iostream>
+#include <assert.h>
 
 using namespace std;
 
 int main() {
-    // test the BigInt class
+
+    #ifndef NEW_TEST
     cout << "Starting some asserts...\n";
     BigInt A("1234567890123456789012345678901234567890");
     assert(A.length() == 40);
@@ -31,11 +33,30 @@ int main() {
     assert(A > B && B < A);
     assert(A >= B && B <= A);
 
+    cout << A * B << endl;
+    cout << B * A << endl;
+
     BigInt user_input;
     cout << "Enter a BigInt: ";
     cin >> user_input;
     cout << "Your BigInt is: ";
     cout << user_input << endl;
+
+    string s;
+    cout << "Enter some digits: ";
+    cin >> s;
+    BigInt E = s;
+    cout << E << endl;
+    cout << A * B * C * D * E << endl;
+    #endif
+
+    BigInt a("-1200000182419842198");
+    BigInt b("100000000141241241");
+    cout << a << endl;
+    cout << b << endl;
+    cout << a / b << endl;
+    cout << a / 10 << endl;
+    cout << b / 10 << endl;
 
     cout << "Finished all the tests" << endl;
     return 0;
