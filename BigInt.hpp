@@ -12,22 +12,17 @@
 #include <string>
 #include <vector>
 
-#include <assert.h>
-
 using namespace std;
 
-// TODO: support division
-
 class BigInt {
-    /* BigInt Class for Big Integers */
-
 public:
     BigInt() : sign(1) {}
 
-    /* Create BigInt from existing values */
+    /* Constructors */
     BigInt(long long x) {
         *this = x;
     }
+
     BigInt(const string &s) {
         read(s);
     }
@@ -36,6 +31,7 @@ public:
         sign = x.sign;
         digits = x.digits;
     }
+
     void operator = (long long x) {
         sign = 1;
         if (x < 0) {
@@ -47,12 +43,8 @@ public:
             x /= BASE;
         }
     }
-    void operator = (const string& s) {
-        BigInt result(s);
-        *this = result;
-    }
 
-    /* BigInt addition */
+    /* Addition function */
     BigInt operator + (const BigInt &x) const {
         if (sign == x.sign) {
             BigInt result = x;
@@ -76,7 +68,7 @@ public:
         return *this - (-x);
     }
 
-    /* BigInt subtraction */
+    /* Subtraction function */
     BigInt operator - (const BigInt &x) const {
         if (sign == x.sign) {
             // Subtract the smaller BigInt from the larger and modify the result's sign accordingly
@@ -102,48 +94,8 @@ public:
         return *this + (-x);
     }
 
-    /* Multiplication with an int */
-    void operator *= (int x) {
-        if (x < 0) {
-            sign = -sign;
-            x = -x;
-        }
-        int n = digits.size();
-        int carry = 0;
-        for (int i = 0; i < n; ++i) {
-            if (i == n) {
-                digits.push_back(0);
-            }
-            long long t = digits[i] * (long long) x + carry;
-            carry = (int) (t / BASE);
-            digits[i] = (int) (t % BASE);
-        }
-        digits[n - 1] += carry;
-        trim();
-    }
-
-    /* Multiplication with a long long */
-    void operator *= (long long x) {
-        if (x < 0) {
-            sign = -sign;
-            x = -x;
-        }
-        int n = digits.size();
-        int carry = 0;
-        for (int i = 0; i < n; ++i) {
-            if (i == (int) digits.size()) {
-                digits.push_back(0);
-            }
-            long long t = digits[i] * x + carry;
-            carry = (int) (t / BASE);
-            digits[i] = (int) (t % BASE);
-        }
-        digits[n - 1] += carry;
-        trim();
-    }
-
-    /* Multiply two BigInts */
-    vector<int> multiply(const vector<int> &a, const vector<int> &b) {
+    /* Multiplication functions */
+    static vector<int> multiply(const vector<int> &a, const vector<int> &b) {
         int a_len = a.size(), b_len = b.size();
         vector<long long> result(a_len + b_len, 0);
         for (int i = 0, carry = 0; i < a_len; ++i) {
@@ -164,37 +116,129 @@ public:
         result *= x;
         return result;
     }
-    BigInt operator * (long long x) const {
-        BigInt result = *this;
-        result *= x;
-        return result;
-    }
 
-    BigInt operator * (BigInt &x) {
-        BigInt result = *this;
-        if (result.sign != x.sign) {
+    BigInt operator * (const BigInt &x) const {
+        BigInt result;
+        result.digits = multiply(digits, x.digits);
+        if (sign != x.sign) {
             result.sign = -1;
         }
         else {
             result.sign = 1;
         }
-        result.digits = multiply(digits, x.digits);
         result.trim();
         return result;
     }
 
+    /* Division functions */
+    friend pair<BigInt, BigInt> divide(const BigInt &dividend, const BigInt &divisor) {
+        // return (quotient, remainder)
+        BigInt a = dividend.abs() * (BASE / (divisor.digits.back() + 1));
+        BigInt b = divisor.abs() * (BASE / (divisor.digits.back() + 1));
+        BigInt quo, rem;
+        quo.digits.resize(a.digits.size());
+
+        for (int i = a.digits.size() - 1; i >= 0; i--) {
+            rem *= BASE;
+            rem += a.digits[i];
+            int x = 0, y = 0;
+
+            if (rem.digits.size() > b.digits.size()) {
+                x = rem.digits[b.digits.size()];
+            }
+            if (rem.digits.size() > b.digits.size() - 1) {
+                y = rem.digits[b.digits.size() - 1];
+            }
+
+            int d = ((long long) BASE * x + y) / b.digits.back();
+            rem -= b * d;
+            while (rem < 0) {
+                rem += b;
+                d--;
+            }
+            quo.digits[i] = d;
+        }
+
+        if (dividend.sign != divisor.sign) {
+            quo.sign = -1;
+        }
+        rem.sign = dividend.sign;
+        quo.trim();
+        rem.trim();
+        return make_pair(quo, rem);
+    }
+
+    BigInt operator / (int x) const {
+        BigInt result = *this;
+        result /= x;
+        return result;
+    }
+
+    BigInt operator / (const BigInt &x) const {
+        return divide(*this, x).first;
+    }
+
+    /* Remainder function */
+    int operator % (int x) const {
+        if (x < 0) {
+            x = -x;
+        }
+        int m = 0;
+        for (int i = digits.size() - 1; i >= 0; i--) {
+            m = (digits[i] + m * (long long) BASE) % x;
+        }
+        return m * sign;
+    }
+
+    BigInt operator % (const BigInt &x) const {
+        return divide(*this, x).second;
+    }
+
     /* Shorthand methods */
+    void operator *= (int x) {
+        if (x < 0) {
+            sign = -sign;
+            x = -x;
+        }
+        for (int i = 0, carry = 0; i < (int) digits.size() || carry; i++) {
+            if (i == (int) digits.size()) {
+                digits.push_back(0);
+            }
+            long long cur = digits[i] * (long long) x + carry;
+            carry = (int) (cur / BASE);
+            digits[i] = (int) (cur % BASE);
+        }
+        trim();
+    }
+    void operator /= (int x) {
+        if (x < 0) {
+            sign = -sign;
+            x = -x;
+        }
+        for (int i = (int) digits.size() - 1, rem = 0; i >= 0; i--) {
+            long long cur = digits[i] + rem * (long long) BASE;
+            digits[i] = (int) (cur / x);
+            rem = (int) (cur % x);
+        }
+        trim();
+    }
     void operator += (const BigInt &x) {
         *this = *this + x;
     }
     void operator -= (const BigInt &x) {
         *this = *this - x;
     }
-    void operator *= (BigInt &x) {
+    void operator *= (const BigInt &x) {
         *this = *this * x;
     }
+    void operator /= (const BigInt &x) {
+        *this = *this / x;
+    }
+    void operator %= (const BigInt &x) {
+        *this = *this % x;
+    }
 
-    /* Compare the values of BigInts */
+    /* Compare BigInts */
     bool operator < (const BigInt &x) const {
         if (sign != x.sign) {
             return sign < x.sign;
@@ -226,17 +270,17 @@ public:
         return (*this < x) || (x < *this);
     }
 
-    /* Absolute value */
-    BigInt abs() const {
-        BigInt result = *this;
-        result.sign *= result.sign;
-        return result;
-    }
-
     /* Change the sign of a BigInt */
     BigInt operator - () const {
         BigInt result = *this;
         result.sign = -sign;
+        return result;
+    }
+
+    /* Absolute value of a BigInt */
+    BigInt abs() const {
+        BigInt result = *this;
+        result.sign *= result.sign;
         return result;
     }
 
@@ -256,18 +300,8 @@ public:
         }
     }
 
-    /* Removes excess space from digits */
-    void trim() {
-        while (!digits.empty() && !digits.back()) {
-            digits.pop_back();
-        }
-        if (digits.empty()) {
-            sign = 1;
-        }
-    }
-
     /* Create a vector<int> from a vector<long long> */
-    vector<int> to_vector_int(const vector<long long> &x) {
+    static vector<int> to_vector_int(const vector<long long> &x) {
         vector<int> result((int) x.size(), 0);
         for (int i = 0; i < (int) x.size(); ++i) {
             result[i] = (int) x[i];
@@ -275,7 +309,7 @@ public:
         return result;
     }
 
-    /* Read in a string and convert to BigInt */
+    /* Read in a string to BigInt */
     void read(const string &s) {
         sign = 1;
         digits.clear();
@@ -297,25 +331,17 @@ public:
         trim();
     }
 
-    /* Convert BigInt to string */
-    static string to_string(BigInt &x) {
-        // BigInt::to_string(x)
-        stringstream ss;
-        ss << x;
-        string result;
-        ss >> result;
-        return result;
-    }
-    string to_string() const {
-        // a.to_string()
-        stringstream ss;
-        ss << *this;
-        string result;
-        ss >> result;
-        return result;
+    /* Remove leading zeroes in digits */
+    void trim() {
+        while (!digits.empty() && !digits.back()) {
+            digits.pop_back();
+        }
+        if (digits.empty()) {
+            sign = 1;
+        }
     }
 
-    /* Inputting and Outputting BigInt using "friend" functions and operator>> and operator<< */
+    /* Input and Output */
     friend istream & operator >> (istream &in, BigInt &x) {
         string s;
         in >> s;
@@ -341,22 +367,10 @@ public:
         return out;
     }
 
-    /* Print the contents of digits, for debugging purposes */
-    void print_digits() {
-        for (const int &d : digits) {
-            cout << d << " ";
-        }
-        cout << '\n';
-    }
-
 private:
-    /*
-     * The BigInt is stored as a base-BASE number with each group of BASE_DIGITS stored as a single int in a vector<int>
-     * The sign of the BigInt (positive or negative) is stored in int sign, with 1 meaning positive and -1 meaning negative
-     */
-
     static const int BASE = 1000000000;
     static const int BASE_DIGITS = 9;
     vector<int> digits;
     int sign;
 };
+
