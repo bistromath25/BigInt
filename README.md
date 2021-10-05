@@ -10,9 +10,12 @@ A simple Big Integer (BigInt) class for C++
 * Multiplication
 * Division
 * Remainder
+* GCD
+* LCM
 * Compare BigInts using <, >, <=, >=, ==, and !=
 * Length of BigInt (number of digits)
 
 # TODO
-* GCD
-* LCM
+* Common functions to test BigInt
+  * Generate big fibonacci numbers
+  * Factorial
