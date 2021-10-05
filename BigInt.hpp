@@ -187,6 +187,7 @@ public:
         rem.sign = dividend.sign;
         quo.trim();
         rem.trim();
+        rem /= BASE / (divisor.digits.back() + 1);
         return make_pair(quo, rem);
     }
 
@@ -361,6 +362,34 @@ public:
         BigInt result = *this;
         result.sign *= result.sign;
         return result;
+    }
+       
+    /* Determine if a BigInt is empty */
+    bool is_zero () const {
+        if (digits.empty()) {
+            return true;
+        }
+        else if (digits.size() == 1 && digits[0] == 0) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+    
+    /* GCD via Euclidean algorithm */
+    friend BigInt gcd(const BigInt &a, const BigInt &b) {
+        if (b.is_zero()) {
+            return a;
+        }
+        else {
+            return gcd(b, a % b);
+        }
+    }
+    
+    /* LCM function */
+    friend BigInt lcm(const BigInt &a, const BigInt &b) {
+        return (a / gcd(a, b)) * b;
     }
 
     /* Number of digits */
