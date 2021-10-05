@@ -8,11 +8,11 @@ A simple Big Integer (BigInt) class for C++
 * Addition
 * Subtraction
 * Multiplication
-  * "Hand-multiplication" = slow :(
+* Division
+* Remainder
 * Compare BigInts using <, >, <=, >=, ==, and !=
-* Length of BigInt
+* Length of BigInt (number of digits)
 
 # TODO
-* Division
 * GCD
 * LCM
