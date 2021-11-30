@@ -111,22 +111,6 @@ public:
     }
 
     /* Multiplication functions */
-    static vector<int> multiply(const vector<int> &a, const vector<int> &b) {
-        int a_len = a.size(), b_len = b.size();
-        vector<long long> result(a_len + b_len, 0);
-        for (int i = 0, carry = 0; i < a_len; ++i) {
-            for (int j = 0; j < b_len; ++j) {
-                result[i + j] += (long long) a[i] * b[j];
-                if (result[i + j] >= BASE) {
-                    carry = result[i + j] / BASE;
-                    result[i + j] %= BASE;
-                    result[i + j + 1] += carry;
-                }
-            }
-        }
-        return to_vector_int(result);
-    }
-
     BigInt operator * (int x) const {
         BigInt result = *this;
         result *= x;
@@ -140,58 +124,19 @@ public:
     }
 
     BigInt operator * (const BigInt &x) const {
-        BigInt result;
-        result.digits = multiply(digits, x.digits);
-        if (sign != x.sign) {
-            result.sign = -1;
-        }
-        else {
-            result.sign = 1;
-        }
+        BigInt result = karatsuba(*this, x);
         result.trim();
         return result;
     }
 
     /* Division functions */
-    friend pair<BigInt, BigInt> divide(const BigInt &dividend, const BigInt &divisor) {
-        // return (quotient, remainder)
-        BigInt a = dividend.abs() * (BASE / (divisor.digits.back() + 1));
-        BigInt b = divisor.abs() * (BASE / (divisor.digits.back() + 1));
-        BigInt quo, rem;
-        quo.digits.resize(a.digits.size());
-
-        for (int i = a.digits.size() - 1; i >= 0; i--) {
-            rem *= BASE;
-            rem += a.digits[i];
-            int x = 0, y = 0;
-
-            if (rem.digits.size() > b.digits.size()) {
-                x = rem.digits[b.digits.size()];
-            }
-            if (rem.digits.size() > b.digits.size() - 1) {
-                y = rem.digits[b.digits.size() - 1];
-            }
-
-            int d = ((long long) BASE * x + y) / b.digits.back();
-            rem -= b * d;
-            while (rem < 0) {
-                rem += b;
-                d--;
-            }
-            quo.digits[i] = d;
-        }
-
-        if (dividend.sign != divisor.sign) {
-            quo.sign = -1;
-        }
-        rem.sign = dividend.sign;
-        quo.trim();
-        rem.trim();
-        rem /= BASE / (divisor.digits.back() + 1);
-        return make_pair(quo, rem);
+    BigInt operator / (int x) const {
+        BigInt result = *this;
+        result /= x;
+        return result;
     }
 
-    BigInt operator / (int x) const {
+    BigInt operator / (long long x) const {
         BigInt result = *this;
         result /= x;
         return result;
@@ -251,19 +196,6 @@ public:
         trim();
     }
 
-    void operator /= (int x) {
-        if (x < 0) {
-            sign = -sign;
-            x = -x;
-        }
-        for (int i = (int) digits.size() - 1, rem = 0; i >= 0; i--) {
-            long long d = digits[i] + rem * (long long) BASE;
-            digits[i] = (int) (d / x);
-            rem = (int) (d % x);
-        }
-        trim();
-    }
-
     void operator *= (long long x) {
         if (x < 0) {
             sign = -sign;
@@ -276,6 +208,19 @@ public:
             long long d = digits[i] * (long long) x + carry;
             carry = (int) (d / BASE);
             digits[i] = (int) (d % BASE);
+        }
+        trim();
+    }
+
+    void operator /= (int x) {
+        if (x < 0) {
+            sign = -sign;
+            x = -x;
+        }
+        for (int i = (int) digits.size() - 1, rem = 0; i >= 0; i--) {
+            long long d = digits[i] + rem * (long long) BASE;
+            digits[i] = (int) (d / x);
+            rem = (int) (d % x);
         }
         trim();
     }
@@ -363,9 +308,9 @@ public:
         result.sign *= result.sign;
         return result;
     }
-       
+
     /* Determine if a BigInt is empty */
-    bool is_zero () const {
+    bool is_zero() const {
         if (digits.empty()) {
             return true;
         }
@@ -376,7 +321,7 @@ public:
             return false;
         }
     }
-    
+
     /* GCD via Euclidean algorithm */
     friend BigInt gcd(const BigInt &a, const BigInt &b) {
         if (b.is_zero()) {
@@ -386,7 +331,7 @@ public:
             return gcd(b, a % b);
         }
     }
-    
+
     /* LCM function */
     friend BigInt lcm(const BigInt &a, const BigInt &b) {
         return (a / gcd(a, b)) * b;
@@ -448,6 +393,7 @@ public:
         return result;
     }
 
+    /* to_string method */
     string to_string() const {
         stringstream ss;
         ss << *this;
@@ -464,6 +410,166 @@ public:
         if (digits.empty()) {
             sign = 1;
         }
+    }
+
+    /* Base conversion */
+    static vector<int> convert_base(const vector<int> &x, int old_digits, int new_digits) {
+        vector<long long> temp(max(old_digits, new_digits) + 1);
+        temp[0] = 1;
+        for (int i = 1; i < (int) temp.size(); ++i) {
+            temp[i] = temp[i - 1] * 10;
+        }
+        vector<int> result;
+        long long cur = 0LL;
+        int cur_digits = 0;
+        for (int i = 0; i < (int) x.size(); ++i) {
+            cur += x[i] * temp[cur_digits];
+            cur_digits += old_digits;
+            while (cur_digits >= new_digits) {
+                result.push_back((int) (cur % temp[new_digits]));
+                cur /= temp[new_digits];
+                cur_digits -= new_digits;
+            }
+        }
+        result.push_back((int) cur);
+        while (!result.empty() && result.back() == 0) {
+            result.pop_back();
+        }
+        return result;
+    }
+
+    /* Basic multiplication method */
+    static vector<int> multiply(const vector<int> &a, const vector<int> &b) {
+        int a_len = a.size(), b_len = b.size();
+        vector<long long> result(a_len + b_len, 0);
+        for (int i = 0, carry = 0; i < a_len; ++i) {
+            for (int j = 0; j < b_len; ++j) {
+                result[i + j] += (long long) a[i] * b[j];
+                if (result[i + j] >= BASE) {
+                    carry = result[i + j] / BASE;
+                    result[i + j] %= BASE;
+                    result[i + j + 1] += carry;
+                }
+            }
+        }
+        return to_vector_int(result);
+    }
+
+    /* BigInt division returning quotient and remainder */
+    friend pair<BigInt, BigInt> divide(const BigInt &dividend, const BigInt &divisor) {
+        // return (quotient, remainder)
+        BigInt a = dividend.abs() * (BASE / (divisor.digits.back() + 1));
+        BigInt b = divisor.abs() * (BASE / (divisor.digits.back() + 1));
+        BigInt quo, rem;
+        quo.digits.resize(a.digits.size());
+
+        for (int i = a.digits.size() - 1; i >= 0; i--) {
+            rem *= BASE;
+            rem += a.digits[i];
+            int x = 0, y = 0;
+
+            if (rem.digits.size() > b.digits.size()) {
+                x = rem.digits[b.digits.size()];
+            }
+            if (rem.digits.size() > b.digits.size() - 1) {
+                y = rem.digits[b.digits.size() - 1];
+            }
+
+            int d = ((long long) BASE * x + y) / b.digits.back();
+            rem -= b * d;
+            while (rem < 0) {
+                rem += b;
+                d--;
+            }
+            quo.digits[i] = d;
+        }
+
+        if (dividend.sign != divisor.sign) {
+            quo.sign = -1;
+        }
+        rem.sign = dividend.sign;
+        quo.trim();
+        rem.trim();
+        rem /= BASE / (divisor.digits.back() + 1);
+        return make_pair(quo, rem);
+    }
+
+    /* Karatsuba multiplication algorithm */
+    static BigInt karatsuba(const BigInt &x, const BigInt &y) {
+        vector<int> a6 = convert_base(x.digits, BASE_DIGITS, 6);
+        vector<int> b6 = convert_base(y.digits, BASE_DIGITS, 6);
+        vector<long long> a(a6.begin(), a6.end());
+        vector<long long> b(b6.begin(), b6.end());
+
+        while (a.size() < b.size()) {
+            a.push_back(0LL);
+        }
+        while (b.size() < a.size()) {
+            b.push_back(0LL);
+        }
+        while (a.size() & (a.size() - 1)) {
+            a.push_back(0LL);
+            b.push_back(0LL);
+        }
+
+        vector<long long> ab = karatsuba(a, b);
+        BigInt result;
+        result.sign = x.sign * y.sign;
+        for (int i = 0, carry = 0; i < (int) ab.size(); ++i) {
+            long long cur = ab[i] + carry;
+            result.digits.push_back((int) (cur % 1000000));
+            carry = (int) (cur / 1000000);
+        }
+
+        result.digits = convert_base(result.digits, 6, BASE_DIGITS);
+        result.trim();
+        return result;
+    }
+
+    static vector<long long> karatsuba(const vector<long long> &a, const vector<long long> &b) {
+        int n = (int) a.size();
+        vector<long long> result(2 * n);
+        if (n <= 32) {
+            for (int i = 0; i < n; ++i) {
+                for (int j = 0; j < n; ++j) {
+                    result[i + j] += a[i] * b[j];
+                }
+            }
+            return result;
+        }
+
+        int k = n >> 1;
+        vector<long long> a1(a.begin(), a.begin() + k);
+        vector<long long> a2(a.begin() + k, a.end());
+        vector<long long> b1(b.begin(), b.begin() + k);
+        vector<long long> b2(b.begin() + k, b.end());
+        vector<long long> a1b1 = karatsuba(a1, b1);
+        vector<long long> a2b2 = karatsuba(a2, b2);
+
+        for (int i = 0; i < k; ++i) {
+            a2[i] += a1[i];
+            b2[i] += b1[i];
+        }
+
+        vector<long long> temp = karatsuba(a2, b2);
+        for (int i = 0; i < (int) a1b1.size(); ++i) {
+            temp[i] -= a1b1[i];
+        }
+        for (int i = 0; i < (int) a2b2.size(); ++i) {
+            temp[i] -= a2b2[i];
+        }
+
+        for (int i = 0; i < (int) temp.size(); ++i) {
+            result[i + k] += temp[i];
+        }
+        for (int i = 0; i < (int) a1b1.size(); ++i) {
+            result[i] += a1b1[i];
+        }
+        for (int i = 0; i < (int) a2b2.size(); ++i) {
+            result[i] += a2b2[i];
+        }
+
+        return result;
     }
 
     /* Input and Output */
@@ -503,6 +609,3 @@ private:
     vector<int> digits;
     int sign;
 };
-
-
-
